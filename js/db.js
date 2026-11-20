@@ -61,12 +61,16 @@ export async function updateMeal(id, meal) {
 
 export async function importMeals(meals) {
   const existing = await getAllMeals();
-  if (existing.length || !meals.length) return false;
+  if (!meals.length) return false;
+  const key = meal => [meal.ts, meal.name, meal.kcal, meal.p, meal.c, meal.f].join('|');
+  const known = new Set(existing.map(key));
+  const missing = meals.filter(meal => !known.has(key(meal)));
+  if (!missing.length) return false;
   const database = await openDB();
   return new Promise((resolve, reject) => {
     const transaction = database.transaction('meals', 'readwrite');
     const store = transaction.objectStore('meals');
-    meals.forEach(meal => store.add({ category: 'Drugo', ...meal }));
+    missing.forEach(meal => store.add({ category: 'Drugo', ...meal }));
     transaction.oncomplete = () => resolve(true);
     transaction.onerror = () => reject(transaction.error);
   });
